@@ -67,13 +67,14 @@ class WumpusGame
 {
 private:
     bool game_status = true; //not over
+    bool wumpus = true;
     string board[4][4];
     tuple<int, int> agent_pos = make_tuple(3, 0);
     map<string, int> dxn_map = {{"up", 8}, {"down", 2}, {"left", 4}, {"right", 6}};
     int agent_dxn = 8;
     bool agent_has_arrow = true;
     vector<string> agent_sense;
-    vector<string> game_parts = {"Pit", "Wumpus", "Pit", "Gold", "Pit"};
+    vector<string> game_parts = {"P", "W", "P", "G", "P"};
     vector<tuple<int, int>> game_parts_pos;
     tuple<int, int> invalid_pos[3] = {make_tuple(3, 0), make_tuple(3, 1), make_tuple(2, 0)};
 
@@ -102,12 +103,14 @@ public:
                 rotate_agent("left");
             else if (command.compare("rotateright") == 0)
                 rotate_agent("right");
+            else if (command.compare("grab") == 0)
+                grab_gold();
             else if (command.compare("exit") == 0 || command.compare("quit") == 0)
             {
                 exit(0);
             }
             else
-                cout << "Command Not Found" << endl;
+                cout << "The list of commands are move, fire , rotateup , rotatedown , rotateleft , rotateright , grab & exit" << endl;
         }
     }
 
@@ -129,7 +132,7 @@ public:
         agent_sense.clear();
         string feel;
         vector<tuple<int, int>> adjacent_pos = get_adjacents(agent_pos);
-        vector<string> unique_game_objects = {"Pit", "Wumpus", "Gold"};
+        vector<string> unique_game_objects = {"P", "W", "G"};
         for (int i = 0; i < adjacent_pos.size(); i++)
         {
             if (compare_with_game_objects(board[get<0>(adjacent_pos[i])][get<1>(adjacent_pos[i])], unique_game_objects, &feel))
@@ -140,7 +143,16 @@ public:
         }
         for (int i = 0; i < agent_sense.size(); i++)
         {
-            cout << "sensed " << agent_sense[i] << endl;
+            if(agent_sense[i] == "P"){
+                cout << "You feel a breeze" << endl;
+            }
+            else if (agent_sense[i] == "W"){
+                cout << "You smell a wumpus " << endl;
+            }
+            else if (agent_sense[i] == "G"){
+                cout << "You see glitter on the walls" << endl;
+            }
+           // cout << "Sensed " << agent_sense[i] << endl;
         }
         
     }
@@ -148,6 +160,7 @@ public:
     vector<string> move_agent()
     {
         tuple<int, int> new_pos;
+
         if (agent_dxn == 8)
         {
             new_pos = make_tuple(get<0>(agent_pos) - 1, get<1>(agent_pos));
@@ -179,7 +192,7 @@ public:
             if (!check_game_over())
             {
                 board[get<0>(prev_agent_pos)][get<1>(prev_agent_pos)] = " ";
-                board[get<0>(agent_pos)][get<1>(agent_pos)] = "Agent";
+                board[get<0>(agent_pos)][get<1>(agent_pos)] = "A";
                 cout << get<0>(agent_pos) << "," << get<1>(agent_pos) << endl;
                 showStatus();
             }
@@ -196,20 +209,36 @@ public:
         {
             agent_dxn = value;
         }
-        cout << "agent rotated to: " << agent_dxn << endl;
+        cout << "Agent rotated to: " << agent_dxn << endl;
     }
 
     void remove_wumpus()
     {
         for (int i = 0; i < game_parts_pos.size(); i++)
         {
-            if (board[get<0>(game_parts_pos[i])][get<1>(game_parts_pos[i])] == "Wumpus")
+            if (board[get<0>(game_parts_pos[i])][get<1>(game_parts_pos[i])] == "W")
             {
                 board[get<0>(game_parts_pos[i])][get<1>(game_parts_pos[i])] = " ";
                 game_parts_pos.erase(game_parts_pos.begin() + i);
                 showStatus();
+                cout << "You have slain the mighty Wumpus" << endl;
                 break;
             }
+        }
+    }
+
+    bool grab_gold()
+    {
+        cout << get<0>(agent_pos) << " " << get<1>(agent_pos) << endl;
+        if(board[get<0>(agent_pos)][get<1>(agent_pos)] == "G"){
+            return true;
+            //check_game_over();
+            game_status = false;
+        }
+        else{
+            cout << "No gold here" << endl;
+            return false;
+           // check_game_over();
         }
     }
 
@@ -217,7 +246,7 @@ public:
     {
         if (agent_has_arrow)
         {
-            tuple<int, int> wumpus_pos = find_element_pos(game_parts_pos, board, "Wumpus");
+            tuple<int, int> wumpus_pos = find_element_pos(game_parts_pos, board, "W");
             if (agent_dxn == 8 && get<1>(agent_pos) == get<1>(wumpus_pos) && get<0>(agent_pos) > get<0>(wumpus_pos))
             {
                 remove_wumpus();
@@ -241,7 +270,7 @@ public:
 
     void generateBoard()
     {
-        vector<string> empty_places(8, " ");
+        vector<string> empty_places(8, "");
         game_parts.insert(game_parts.end(), empty_places.begin(), empty_places.end());
         for (int row = 0; row < 4; row++)
         {
@@ -253,14 +282,14 @@ public:
                 }
                 else if (make_tuple(row, col) == invalid_pos[0])
                 {
-                    board[row][col] = "Agent";
+                    board[row][col] = "A";
                 }
                 else
                 {
-                    int index = (rand() % game_parts.size());
+                    int index = (rand() % 8);//game_parts.size());
                     board[row][col] = game_parts[index];
                     game_parts.erase(game_parts.begin() + index);
-                    if (board[row][col] != "Gold" && board[row][col] != " ")
+                    if (board[row][col] != "G" && board[row][col] != "")
                     {
                         game_parts_pos.push_back(make_tuple(row, col));
                     }
@@ -276,9 +305,9 @@ public:
         {
             for (int col = 0; col < 4; col++)
             {
-                cout << "|" << board[row][col];
+                cout << " | " << board[row][col];
             }
-            cout << "|" << endl;
+            cout << " | " << endl;
             cout << "----------------------------------------" << endl;
         }
     }
@@ -288,7 +317,7 @@ public:
         if (find_element_vector(game_parts_pos, agent_pos))
         {
             cout << "GAME OVER!!" << endl;
-            if (board[get<0>(agent_pos)][get<1>(agent_pos)] == "Wumpus")
+            if (board[get<0>(agent_pos)][get<1>(agent_pos)] == "W")
             {
                 cout << "You got eaten by the Wumpus!!" << endl;
             }
@@ -298,8 +327,9 @@ public:
             }
             return true;
         }
-        else if (board[get<0>(agent_pos)][get<1>(agent_pos)] == "Gold")
+        else if (grab_gold())
         {
+            cout << "You have grabbed the gold, well played" << endl;
             cout << "You Won!!" << endl;
             cout << "Well Played!!" << endl;
             return true;
